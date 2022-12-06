@@ -1,4 +1,5 @@
 import string
+from threading import Thread
 
 class TermoBot:
     contains = []
@@ -35,8 +36,30 @@ class TermoBot:
 
     def find(self):
         self.result_set = []
-        self.find_rec("")
+        self.find_start_thread()
         return self.result_set
+
+    # improve performance on search
+    def find_start_thread(self):
+        word = ""
+
+        def start_find_thread(word):
+            self.find_rec(word)
+            print("Finished for "+word)
+
+        threads = []
+        for i in range(25):
+            letter = self.alph[i]
+            thread = Thread(target=start_find_thread, args=(word+letter))
+            threads.append(thread)
+
+        # Start them all
+        for thread in threads:
+            thread.start()
+
+        # Wait for all to complete
+        for thread in threads:
+            thread.join()
 
     def find_rec(self, word, results=[]):
         # reject
@@ -54,8 +77,8 @@ class TermoBot:
         self.next_letter(word)
 
     def next_letter(self, word):
-        if len(word)+1 in self.contains_exact.keys():
-            word += self.contains_exact[len(word)+1]
+        if len(word) in self.contains_exact.keys():
+            word += self.contains_exact[len(word)]
             self.find_rec(word)
             word = word[:-1]
         else:
@@ -74,11 +97,53 @@ class TermoBot:
 
         return True
 
+    def _letters_in_position_words(self, words):
+        result = {0: {}, 1: {}, 2: {}, 3: {}, 4: {}}
+        for word in words:
+            for index, letter in enumerate(word):
+                if letter in result[index].keys():
+                    result[index][letter] += 1
+                else:
+                    result[index][letter] = 1
+
+        return result
+
+    def get_words_sugestion(self):
+        words_score = []
+        letters_position = self._letters_in_position_words(self.result_set)
+        for word in self.result_set:
+            score = self._score_of_word(word, letters_position)
+            words_score.append((score, word))
+        return sorted(words_score)
+
+
+    def _score_of_word(self, word, letters_in_positions):
+        word_score = 0
+        for index, letter in enumerate(word):
+            if index in self.contains_exact.keys():
+                continue
+            else:
+                if word.count(letter) > 1:
+                    word_score += letters_in_positions[index][letter] / 2
+                else:
+                    word_score += letters_in_positions[index][letter]
+        return word_score
+            
+
     def last_letter_is_valid(self, word):
         if len(word) > 0 and word[-1] in self.no_contains:
             return False
-        if len(word) in self.no_contains_exact and word[-1] in self.no_contains_exact[len(word)]:
+        if len(word) - 1 in self.no_contains_exact.keys() and word[-1] in self.no_contains_exact[len(word) - 1]:
             return False
+
+        valid = False
+        for fword in self.words:
+            if fword.startswith(word):
+                valid = True
+                break
+        if not valid:
+            return False
+
         return True
                 
     
