@@ -43,6 +43,14 @@ class TermoBot:
     def find_start_thread(self):
         word = ""
 
+        prev = -1
+        for index in sorted(self.contains_exact.keys()):
+            if index - prev == 1:
+                word += self.contains_exact[index]
+                prev = index
+            else:
+                break
+
         def start_find_thread(word):
             self.find_rec(word)
             print("Finished for "+word)
@@ -50,7 +58,8 @@ class TermoBot:
         threads = []
         for i in range(25):
             letter = self.alph[i]
-            thread = Thread(target=start_find_thread, args=(word+letter))
+            final_word = word+letter
+            thread = Thread(target=start_find_thread, args=(final_word,))
             threads.append(thread)
 
         # Start them all
